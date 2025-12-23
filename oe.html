@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #007bff; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .login-container {
+    width: 80%; 
+    max-width: 900px;
+    padding: 40px 50px; 
+    background-color: #fff;
+    border-radius: 12px; 
+    z-index:0;
+    text-align: center;
+    position: absolute;
+	top:300px;	
+  }
+
+  /* Updated CSS for the LARGEST yellow box */
+  .score-box {
+    background-color: #E7ef45; 
+    color: #333;
+    /* Increased padding significantly for height and width */
+    padding: 25px 40px; 
+    border-radius: 5px;
+    font-weight: bold;
+    /* Increased font size again */
+    font-size: 68px; 
+    position: absolute;
+    /* Adjusted position to cover half of the corner vertically */
+    top: -40px; 
+    left: -70px; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  }
+
+  .logo {
+    width: 220px; 
+	position:absolute;
+	z-index:2;
+	top:160px;
+    margin-bottom: 50px; 
+  }
+
+  .title {
+    font-weight: bold;
+    color: #333;
+    font-size: 48px; 
+    margin-bottom: 50px; 
+  }
+
+  .form-group {
+    text-align: left;
+    margin-bottom: 30px; 
+  }
+
+  .form-group label {
+    display: block;
+    color: #666;
+    margin-bottom: 12px; 
+    font-size: 20px; 
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 25px 22px; 
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 20px; 
+  }
+
+  .login-btn {
+    background-color: #005dff;
+    color: #ffffff;
+    padding: 20px 30px; 
+    display: block;
+    text-decoration: none;
+    border-radius: 500px; 
+    font-weight: bold;
+    font-size: 20spx; 
+    margin-top: 60px; 
+    border: none;
+    cursor: pointer;
+    width: 100%;
+  }
+  
+  .lock-icon {
+    width: 20px; /* Size of the lock icon */
+    height: auto;
+    display: block; /* Ensures the image behaves like a block element */
+    margin: 0 11px 2px 100px; /* Centers the image and adds margin below it */
+  }
+.ai-box-container {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  text-align: right;
+  z-index: 10;
+}
+.ai-toggle {
+  background: #545454;
+  color: #333;
+  border: none;
+  padding: 10px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  position:absolute;
+  top:-150px;
+  left:40px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.ai-content {
+  display: none;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin-top: 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  width: 250px;
+  flex-direction: column;
+  gap: 10px;
+}
+.ai-box-container.active .ai-content { display: flex; }
+#ai-response {
+  font-size: 14px;
+  color: #555;
+  max-height: 100px;
+  overflow-y: auto;
+  text-align: left;
+  border-top: 1px solid #eee;
+  padding-top: 5px;
+}
+
+
+</style>
+</head>
+<body style="background-image:url(85.png);width: 100%">
+    <img src="https://oe.just.edu.jo/moodle/pluginfile.php/2/core_admin/logocompact/300x300/1766278806/oe_learn_black_2.png" alt="Logo" class="logo">
+
+<div class="login-container">
+    
+<div class="ai-box-container">
+  <button type="button" class="ai-toggle" onclick="this.parentElement.classList.toggle('active')"></button>
+  <div class="ai-content">
+    <input type="text" id="ai-input" placeholder="How do I login?" style="padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+    <button type="button" onclick="askChatGPT()" style="background: #005dff; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Send</button>
+    <div id="ai-response">AI response will appear here...</div>
+  </div>
+</div>
+
+<script>
+async function askChatGPT() {
+  const input = document.getElementById('ai-input').value;
+  const responseDiv = document.getElementById('ai-response');
+  const apiKey = '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'; // Ensure this starts with "sk-..."
+
+  if (!input) return;
+  responseDiv.innerText = "Thinking...";
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini", // 2025 standard; cheaper and faster
+        messages: [{ role: "user", content: input }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.error) {
+      responseDiv.innerText = "API Error: " + data.error.message;
+    } else {
+      // Corrected access path for chat completions
+      responseDiv.innerText = data.choices[0].message.content;
+    }
+  } catch (error) {
+    responseDiv.innerText = "Connection Error: Check console (F12).";
+    console.error("Fetch error:", error);
+  }
+}
+
+</script>
+
+
+    <div class="title">ONLINE EXAMS</div>
+
+    <form>
+      <div class="form-group">
+		  <label></label>
+          <input type="text" id="username" placeholder="Enter Username">
+      </div>
+
+      <div class="form-group">
+          <input type="password" id="password" placeholder="Enter Password">
+      </div>
+
+      <button type="submit" class="login-btn">LOGIN</button>
+    </form>
+</div>
+
+</body>
+</html>
