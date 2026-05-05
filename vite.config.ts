@@ -6,4 +6,21 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+const repository = process.env.GITHUB_REPOSITORY?.split("/")[1];
+const pagesBasePath =
+  process.env.GITHUB_ACTIONS === "true" && repository && !repository.endsWith(".github.io")
+    ? `/${repository}/`
+    : "/";
+
+export default defineConfig({
+  cloudflare: false,
+  tanstackStart: {
+    prerender: {
+      enabled: true,
+      crawlLinks: true,
+    },
+  },
+  vite: {
+    base: pagesBasePath,
+  },
+});
