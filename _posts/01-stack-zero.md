@@ -4,7 +4,7 @@ ctf: "picoCTF 2024"
 category: "pwn"
 difficulty: "easy"
 points: 100
-date: "2026-04-12"
+date: "2024-04-12"
 lat: 37.77
 lng: -122.41
 summary: "Walking through the most fundamental stack overflow: overwriting a local flag variable with `gets()`."

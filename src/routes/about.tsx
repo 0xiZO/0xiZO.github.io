@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { Starfield } from "@/components/Starfield";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Github, Twitter, Mail, Globe as GlobeIcon } from "lucide-react";
+import { Break } from "three/src/nodes/utils/LoopNode.js";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -18,18 +19,18 @@ export const Route = createFileRoute("/about")({
 });
 
 const skills = [
-  { name: "Binary Exploitation", value: 88 },
-  { name: "Reverse Engineering", value: 82 },
-  { name: "Heap / glibc internals", value: 74 },
-  { name: "Web / Crypto (side quests)", value: 60 },
-  { name: "Python · C · Rust", value: 78 },
+  { name: "Binary Exploitation", value: 33 },
+  { name: "Reverse Engineering", value: 33 },
+  { name: "Heap / glibc internals", value: 33 },
+  { name: "Web / Crypto (side quests)", value: 33 },
+  { name: "Python · C · Assembly", value: 33 },
 ];
 
 const socials = [
-  { icon: Github, label: "github.com/you", href: "#" },
-  { icon: Twitter, label: "@you", href: "#" },
-  { icon: Mail, label: "you@orbit.pwn", href: "mailto:you@example.com" },
-  { icon: GlobeIcon, label: "orbit.pwn", href: "#" },
+  { icon: Github, label: "github.com/iZO", href: "https://github.com/iZO" },
+  { icon: Twitter, label: "@0xiZO", href: "#" },
+  { icon: Mail, label: "toadd", href: "mailto:broWaitToAdd" },
+  { icon: GlobeIcon, label: "pwner@Raptx", href: "https://raptx.org/" },
 ];
 
 function AboutPage() {
@@ -40,7 +41,7 @@ function AboutPage() {
       <main className="max-w-6xl mx-auto px-6 pt-28 pb-20">
         <SectionHeader
           kicker="OPERATOR PROFILE"
-          title="About the pilot"
+          title="About "
         />
 
         <div className="grid lg:grid-cols-[320px_1fr] gap-10">
@@ -54,22 +55,32 @@ function AboutPage() {
             >
               <div className="aspect-square rounded-xl overflow-hidden relative bg-gradient-to-br from-primary/30 via-accent/20 to-background">
                 <div className="absolute inset-0 grid place-items-center mono text-7xl font-black text-primary/80">
-                  0x7F
+<div className="absolute inset-0 grid place-items-center">
+  {/* The Image from URL */}
+  <img 
+    src="https://www.universetoday.com/article_images/milky_way.jpg" 
+    alt="Logo" 
+    className="z-10 h-full w-auto object-contain opacity-80" 
+  />
+  
+  {/* The Grid Overlay */}
+  <div className="absolute inset-0 bg-grid opacity-30" />
+</div>
                 </div>
                 <div className="absolute inset-0 bg-grid opacity-30" />
               </div>
               <h3 className="mt-5 text-xl font-black">0xiZO</h3>
               <p className="mono text-xs text-primary tracking-widest mt-1">
-                CTF · PWN · LOW-LEVEL
+                CTF · PWN · LOW-LEVEL 
               </p>
               <dl className="mt-5 space-y-2 text-xs">
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground mono uppercase tracking-widest">Loc</dt>
-                  <dd>Low Earth Orbit</dd>
+                  <dd>All to Grave</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground mono uppercase tracking-widest">Stack</dt>
-                  <dd>Python · C · Rust</dd>
+                  <dd>Assembly · C · Python </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground mono uppercase tracking-widest">Coffee</dt>
@@ -100,16 +111,12 @@ function AboutPage() {
               className="glass rounded-2xl p-6"
             >
               <h2 className="text-2xl font-black text-glow">Bio</h2>
-              <div className="mt-3 space-y-3 text-sm leading-relaxed text-foreground/90">
+              <div className="mt-3 space-y-3 text-sm leading-relaxed text-foreground/90"> 
                 <p>
-                  I'm a CTF player who spends most weekends staring at ghidra and
-                  whispering to a debugger. My favorite category is{" "}
-                  <span className="text-primary">pwn</span> — corrupting memory
-                  in elegant ways still feels like magic.
+                  I'm cybersecurity enthusiast, specializing in reverse engineering and exploit development. — "My mom says I should pray at time 5 times a day, but I just pary when I solve a challenge, so..."   
                 </p>
                 <p>
-                  This site is my orbital log: every solved challenge becomes a
-                  beacon on the globe. I write things up so future-me (and you)
+                  I write things up so future-me (and you)
                   can skip the dead ends.
                 </p>
               </div>
@@ -150,9 +157,9 @@ function AboutPage() {
                 className="glass rounded-2xl p-6"
               >
                 <div className="mono text-[10px] uppercase tracking-widest text-primary">// Stat</div>
-                <div className="text-4xl font-black mt-1 text-glow">142</div>
+                <div className="text-4xl font-black mt-1 text-glow">0</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Challenges solved across 38 CTFs
+                  Challenges solved across 0 CTFs
                 </div>
               </motion.div>
               <motion.div
@@ -162,7 +169,7 @@ function AboutPage() {
                 className="glass rounded-2xl p-6"
               >
                 <div className="mono text-[10px] uppercase tracking-widest text-accent">// Stat</div>
-                <div className="text-4xl font-black mt-1 text-glow">7yrs</div>
+                <div className="text-4xl font-black mt-1 text-glow">0yrs</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Time spent making `gdb` cry
                 </div>

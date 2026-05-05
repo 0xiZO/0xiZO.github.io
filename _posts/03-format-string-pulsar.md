@@ -1,10 +1,10 @@
 ---
 title: "Pulsar — Format String to Arbitrary Write"
-ctf: "DefCon Quals 2025"
+ctf: "picoCTF 2024"
 category: "pwn"
-difficulty: "medium"
-points: 350
-date: "2026-02-14"
+difficulty: "easy"
+points: 100
+date: "2024-02-14"
 lat: 35.68
 lng: 139.69
 summary: "From a single uncontrolled `printf` we leak PIE and libc, then hijack `__free_hook` to win."
@@ -37,4 +37,4 @@ io.sendline(payload)
 io.sendline(b"/bin/sh\x00")
 ```
 
-**Flag:** `DEFCON{p3rcent_n_n3v3r_di3s}`
+**Flag:** `picoCTF{p3rcent_n_n3v3r_di3s}`

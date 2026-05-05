@@ -40,9 +40,9 @@ function HobbiesPage() {
       <SiteHeader />
       <main className="max-w-7xl mx-auto px-6 pt-28 pb-20">
         <SectionHeader
-          kicker="OBSERVATION DECK"
-          title="Hobbies & signals"
-          subtitle="A loose log of the anime, games, and series I'm currently watching, have wrapped, or have queued for orbit."
+          kicker="TAKE A BREAK or BREAK TAKES YOU"
+          title="Hobbies"
+          subtitle=""
         />
 
         {/* Category tabs */}

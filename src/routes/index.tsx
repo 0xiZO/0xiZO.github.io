@@ -50,8 +50,7 @@ function Index() {
           <span className="text-primary">plotted by 0xiZO.</span>
           </h1>
           <p className="mt-5 text-sm md:text-base text-muted-foreground max-w-md">
-            A constellation of pwn challenges I've solved — every pin marks a
-            writeup. Drag to spin the Earth. Click a beacon to read.
+            A constellation of pwn challenges I've solved — every pin is a pain I mean gain and it marks a writeup.
           </p>
           <div className="mt-7 pointer-events-auto flex gap-3 flex-wrap">
             <Link
@@ -104,7 +103,7 @@ function Index() {
         <SectionHeader
           kicker="LATEST TRANSMISSIONS"
           title="Recent writeups"
-          subtitle="Fresh logs from the latest events. Open any beacon to read the full breakdown."
+          subtitle="Fresh logs from the latest events."
         />
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {writeups.slice(0, 6).map((w) => (
