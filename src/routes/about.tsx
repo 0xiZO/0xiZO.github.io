@@ -55,18 +55,18 @@ function AboutPage() {
             >
               <div className="aspect-[3/4.14] rounded-xl overflow-hidden relative bg-gradient-to-br from-primary/30 via-accent/20 to-background">
                 <div className="absolute inset-0 grid place-items-center mono text-7xl font-black text-primary/80">
-<div className="absolute inset-0 grid place-items-center">
-  {/* The Image from URL */}
-<img 
-  src="_posts/a.jpeg" 
-  alt="0xiZO" 
-  className="z-10 h-full w-auto object-contain opacity-80" 
-/>
+                <div className="absolute inset-0 grid place-items-center">
+                  {/* The Image from URL */}
+                <img 
+                  src="assets/a.jpeg" 
+                  alt="0xiZO" 
+                  className="z-10 h-full w-auto object-contain opacity-80" 
+                />
 
-  
-  {/* The Grid Overlay */}
-  <div className="absolute inset-0 bg-grid opacity-30" />
-</div>
+                  
+                  {/* The Grid Overlay */}
+                  <div className="absolute inset-0 bg-grid opacity-30" />
+                </div>
                 </div>
                 <div className="absolute inset-0 bg-grid opacity-30" />
               </div>
