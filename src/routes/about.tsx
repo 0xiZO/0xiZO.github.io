@@ -58,7 +58,7 @@ function AboutPage() {
                 <div className="absolute inset-0 grid place-items-center">
                   {/* The Image from URL */}
                 <img 
-                  src="assets/a.jpeg" 
+                  src="/assets/a.jpeg" 
                   alt="0xiZO" 
                   className="z-10 h-full w-auto object-contain opacity-80" 
                 />
