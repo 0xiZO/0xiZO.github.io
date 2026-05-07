@@ -58,8 +58,8 @@ function AboutPage() {
 <div className="absolute inset-0 grid place-items-center">
   {/* The Image from URL */}
 <img 
-  src="a.jpeg" 
-  alt="Milky Way Galaxy" 
+  src="_posts/a.jpeg" 
+  alt="0xiZO" 
   className="z-10 h-full w-auto object-contain opacity-80" 
 />
 
