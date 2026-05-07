@@ -27,7 +27,7 @@ const skills = [
 ];
 
 const socials = [
-  { icon: Github, label: "github.com/iZO", href: "https://github.com/iZO" },
+  { icon: Github, label: "github.com/0xiZO", href: "https://github.com/0xiZO" },
   { icon: Twitter, label: "@0xiZO", href: "#" },
   { icon: Mail, label: "toadd", href: "mailto:broWaitToAdd" },
   { icon: GlobeIcon, label: "pwner@Raptx", href: "https://raptx.org/" },
@@ -53,15 +53,16 @@ function AboutPage() {
               transition={{ duration: 0.5 }}
               className="glass rounded-2xl p-5"
             >
-              <div className="aspect-square rounded-xl overflow-hidden relative bg-gradient-to-br from-primary/30 via-accent/20 to-background">
+              <div className="aspect-[3/4.14] rounded-xl overflow-hidden relative bg-gradient-to-br from-primary/30 via-accent/20 to-background">
                 <div className="absolute inset-0 grid place-items-center mono text-7xl font-black text-primary/80">
 <div className="absolute inset-0 grid place-items-center">
   {/* The Image from URL */}
-  <img 
-    src="https://www.universetoday.com/article_images/milky_way.jpg" 
-    alt="Logo" 
-    className="z-10 h-full w-auto object-contain opacity-80" 
-  />
+<img 
+  src="a.jpeg" 
+  alt="Milky Way Galaxy" 
+  className="z-10 h-full w-auto object-contain opacity-80" 
+/>
+
   
   {/* The Grid Overlay */}
   <div className="absolute inset-0 bg-grid opacity-30" />
@@ -113,7 +114,7 @@ function AboutPage() {
               <h2 className="text-2xl font-black text-glow">Bio</h2>
               <div className="mt-3 space-y-3 text-sm leading-relaxed text-foreground/90"> 
                 <p>
-                  I'm cybersecurity enthusiast, specializing in reverse engineering and exploit development. — "My mom says I should pray at time 5 times a day, but I just pary when I solve a challenge, so..."   
+                  I'm cybersecurity enthusiast, specializing in exploit development. — "My mom says I should pray at time 5 times a day, but I just pary when I solve a challenge, so..."   
                 </p>
                 <p>
                   I write things up so future-me (and you)

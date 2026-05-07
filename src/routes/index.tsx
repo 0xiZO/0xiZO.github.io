@@ -50,7 +50,7 @@ function Index() {
           <span className="text-primary">plotted by 0xiZO.</span>
           </h1>
           <p className="mt-5 text-sm md:text-base text-muted-foreground max-w-md">
-            A constellation of pwn challenges I've solved — every pin is a pain I mean gain and it marks a writeup.
+            Every pin is a pain I mean gain and it marks a writeup.
           </p>
           <div className="mt-7 pointer-events-auto flex gap-3 flex-wrap">
             <Link
