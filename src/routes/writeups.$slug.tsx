@@ -46,7 +46,7 @@ function WriteupPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <article className="max-w-3xl mx-auto px-6 pt-28 pb-20">
+      <article className="max-w-6xl mx-auto px-6 pt-28 pb-20">
         <Link to="/writeups" className="mono text-xs text-muted-foreground uppercase tracking-widest hover:text-primary">
           ← Archive
         </Link>
