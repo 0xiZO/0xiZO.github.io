@@ -5,8 +5,8 @@ category: "pwn"
 difficulty: "easy"
 points: null
 date: "2026-05-21"
-lat: -20.71
-lng: 50.00
+lat: -9.71
+lng: 1200
 summary: "Overlapping large heap bins directly with the tcache_perthread_struct by bypassing the victim->bk->fd safety checks, successfully forcing a fake 0x10000-sized chunk allocation to control target tcache bucket counts and heads."
 tags:
   - "heap"
